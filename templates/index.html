@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>MNIST Digit Recognition</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+    <!-- =====================================================
+         TITLE
+         ===================================================== -->
+
+    <h1>
+        Handwritten Digit Recognition
+    </h1>
+
+    <p class="subtitle">
+        Custom CNN using MNIST Dataset
+    </p>
+
+
+    <!-- =====================================================
+         DRAW SECTION
+         ===================================================== -->
+
+    <div class="section">
+
+        <h2>
+            Draw a Digit
+        </h2>
+
+        <canvas
+            id="canvas"
+            width="280"
+            height="280">
+        </canvas>
+
+        <br>
+
+        <button onclick="predictDrawing()">
+            Predict
+        </button>
+
+        <button
+            onclick="clearCanvas()"
+            class="clear">
+
+            Clear
+
+        </button>
+
+    </div>
+
+
+    <div class="or">
+        OR
+    </div>
+
+
+    <!-- =====================================================
+         UPLOAD SECTION
+         ===================================================== -->
+
+    <div class="section">
+
+        <h2>
+            Upload Handwritten Digit
+        </h2>
+
+        <input
+            type="file"
+            id="fileInput"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+        >
+
+        <br>
+
+        <button onclick="predictUploadedImage()">
+            Predict Uploaded Image
+        </button>
+
+    </div>
+
+
+    <!-- =====================================================
+         RESULT
+         ===================================================== -->
+
+    <div
+        id="result"
+        class="result">
+
+        <h2>
+            Prediction
+        </h2>
+
+        <div id="digit">
+            -
+        </div>
+
+        <p id="confidence">
+            Draw or upload a digit
+        </p>
+
+    </div>
+
+</div>
+
+
+<script>
+
+
+// ============================================================
+// CANVAS SETUP
+// ============================================================
+
+const canvas =
+    document.getElementById("canvas");
+
+const ctx =
+    canvas.getContext("2d");
+
+
+// ============================================================
+// CANVAS BACKGROUND
+// ============================================================
+
+// MNIST-style background:
+// BLACK = background
+
+ctx.fillStyle = "black";
+
+ctx.fillRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+);
+
+
+// ============================================================
+// DRAWING SETTINGS
+// ============================================================
+
+// MNIST-style digit:
+// WHITE = foreground
+
+ctx.strokeStyle = "white";
+
+// Slightly thinner than the previous 20px
+ctx.lineWidth = 18;
+
+ctx.lineCap = "round";
+ctx.lineJoin = "round";
+
+
+// Prevent blurry drawing
+ctx.imageSmoothingEnabled = true;
+
+
+let drawing = false;
+
+
+// ============================================================
+// GET CANVAS POSITION
+// ============================================================
+
+function getCanvasPosition(event) {
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+    const scaleX =
+        canvas.width / rect.width;
+
+    const scaleY =
+        canvas.height / rect.height;
+
+    return {
+
+        x:
+            (event.clientX - rect.left)
+            * scaleX,
+
+        y:
+            (event.clientY - rect.top)
+            * scaleY
+
+    };
+
+}
+
+
+// ============================================================
+// START DRAWING
+// ============================================================
+
+canvas.addEventListener(
+    "mousedown",
+    function(event) {
+
+        drawing = true;
+
+        const position =
+            getCanvasPosition(event);
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            position.x,
+            position.y
+        );
+
+        // Draw a small circular point
+        // so a click also creates a mark
+
+        ctx.arc(
+            position.x,
+            position.y,
+            ctx.lineWidth / 2,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fillStyle = "white";
+
+        ctx.fill();
+
+        // Restore drawing settings
+
+        ctx.strokeStyle = "white";
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            position.x,
+            position.y
+        );
+
+    }
+);
+
+
+// ============================================================
+// DRAWING
+// ============================================================
+
+canvas.addEventListener(
+    "mousemove",
+    function(event) {
+
+        if (!drawing) {
+            return;
+        }
+
+        const position =
+            getCanvasPosition(event);
+
+        ctx.lineTo(
+            position.x,
+            position.y
+        );
+
+        ctx.stroke();
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            position.x,
+            position.y
+        );
+
+    }
+);
+
+
+// ============================================================
+// STOP DRAWING
+// ============================================================
+
+function stopDrawing() {
+
+    drawing = false;
+
+    ctx.beginPath();
+
+}
+
+canvas.addEventListener(
+    "mouseup",
+    stopDrawing
+);
+
+canvas.addEventListener(
+    "mouseleave",
+    stopDrawing
+);
+
+
+// ============================================================
+// TOUCH SUPPORT
+// ============================================================
+
+canvas.addEventListener(
+    "touchstart",
+    function(event) {
+
+        event.preventDefault();
+
+        const touch =
+            event.touches[0];
+
+        const rect =
+            canvas.getBoundingClientRect();
+
+        const x =
+            (touch.clientX - rect.left)
+            * (canvas.width / rect.width);
+
+        const y =
+            (touch.clientY - rect.top)
+            * (canvas.height / rect.height);
+
+        drawing = true;
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            x,
+            y
+        );
+
+    }
+);
+
+
+canvas.addEventListener(
+    "touchmove",
+    function(event) {
+
+        event.preventDefault();
+
+        if (!drawing) {
+            return;
+        }
+
+        const touch =
+            event.touches[0];
+
+        const rect =
+            canvas.getBoundingClientRect();
+
+        const x =
+            (touch.clientX - rect.left)
+            * (canvas.width / rect.width);
+
+        const y =
+            (touch.clientY - rect.top)
+            * (canvas.height / rect.height);
+
+        ctx.lineTo(
+            x,
+            y
+        );
+
+        ctx.stroke();
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            x,
+            y
+        );
+
+    }
+);
+
+
+canvas.addEventListener(
+    "touchend",
+    function() {
+
+        drawing = false;
+
+        ctx.beginPath();
+
+    }
+);
+
+
+// ============================================================
+// CLEAR CANVAS
+// ============================================================
+
+function clearCanvas() {
+
+    ctx.fillStyle = "black";
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    ctx.strokeStyle = "white";
+
+    ctx.lineWidth = 18;
+
+    document.getElementById(
+        "digit"
+    ).innerText = "-";
+
+    document.getElementById(
+        "confidence"
+    ).innerText =
+        "Draw or upload a digit";
+
+}
+
+
+// ============================================================
+// PREDICT DRAWING
+// ============================================================
+
+async function predictDrawing() {
+
+    const image =
+        canvas.toDataURL("image/png");
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        "image",
+        image
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                "/predict",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+        const result =
+            await response.json();
+
+        displayResult(result);
+
+    }
+    catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Unable to connect to the prediction server."
+        );
+
+    }
+
+}
+
+
+// ============================================================
+// PREDICT UPLOADED IMAGE
+// ============================================================
+
+async function predictUploadedImage() {
+
+    const fileInput =
+        document.getElementById(
+            "fileInput"
+        );
+
+    if (
+        fileInput.files.length === 0
+    ) {
+
+        alert(
+            "Please select an image first."
+        );
+
+        return;
+
+    }
+
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        "file",
+        fileInput.files[0]
+    );
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/predict",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+        const result =
+            await response.json();
+
+        displayResult(result);
+
+    }
+    catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Unable to connect to the prediction server."
+        );
+
+    }
+
+}
+
+
+// ============================================================
+// DISPLAY RESULT
+// ============================================================
+
+function displayResult(result) {
+
+    if (result.error) {
+
+        alert(
+            result.error
+        );
+
+        return;
+
+    }
+
+
+    document.getElementById(
+        "digit"
+    ).innerText =
+        result.digit;
+
+
+    document.getElementById(
+        "confidence"
+    ).innerText =
+        "Confidence: "
+        +
+        result.confidence
+        +
+        "%";
+
+}
+
+
+</script>
+
+</body>
+
+</html>
